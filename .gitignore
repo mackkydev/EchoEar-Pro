@@ -20,5 +20,9 @@ Desktop.ini
 # Python
 __pycache__/
 *.pyc
-
+ 
 firmware/esp-brookesia/
+
+tools/vcpkg/
+tools/ui-preview/simulator/
+tools/ui-preview/build/
