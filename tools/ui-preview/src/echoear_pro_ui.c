@@ -30,6 +30,8 @@ static lv_obj_t *car_line_4;
 static lv_timer_t *anim_timer;
 static const echoear_anim_t *current_anim;
 static uint8_t current_frame;
+static echoear_face_state_t current_state;
+static bool current_state_valid;
 
 /* ---------- frame paths ------------------------------------------------------------ */
 /* ถ้ารูปไม่ขึ้นทีหลัง เดี๋ยวค่อยเปลี่ยน path เป็น A:/assets/... */
@@ -197,6 +199,36 @@ static const echoear_anim_t anim_car_obd_ready = {
     "RANGE 478 km",
     "SPEED 0 km/h"};
 
+/* Module 3A reuses existing graphics. Module 3B can replace each frame set
+   with dedicated vehicle-state artwork without changing the state model. */
+static const echoear_anim_t anim_car_parked = {
+    car_obd_ready, 3, 420, true,
+    "VEHICLE READY", "SOC --%", "RANGE -- km", "LOCKED"};
+
+static const echoear_anim_t anim_car_charging = {
+    normal_happy, 2, 420, true,
+    "CHARGING", "SOC --%", "POWER -- kW", "LIMIT --%"};
+
+static const echoear_anim_t anim_car_low_battery = {
+    system_low_battery, 2, 550, true,
+    "LOW BATTERY", "SOC --%", "RANGE -- km", "CHARGE SOON"};
+
+static const echoear_anim_t anim_car_door_open = {
+    normal_confused, 4, 380, true,
+    "DOOR OPEN", "SOC --%", "RANGE -- km", "UNLOCKED"};
+
+static const echoear_anim_t anim_car_cloud_stale = {
+    normal_thinking, 3, 650, true,
+    "DATA STALE", "SOC --%", "RANGE -- km", "CHECK REFRESH"};
+
+static const echoear_anim_t anim_car_cloud_offline = {
+    car_obd_error, 2, 650, true,
+    "CLOUD OFFLINE", "SOC --%", "RANGE -- km", "RETRYING..."};
+
+static const echoear_anim_t anim_car_driving = {
+    car_obd_ready, 3, 240, true,
+    "DRIVING", "SPEED -- km/h", "RANGE -- km", "SOURCE --"};
+
 static void anim_timer_cb(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
@@ -237,19 +269,78 @@ static lv_obj_t *make_panel(lv_obj_t *parent)
 static void update_car_panel_from_state(void)
 {
     echoear_app_state_t *state = echoear_app_state_get();
+    echoear_vehicle_state_t *vehicle = &state->vehicle;
 
-    char soc_text[32];
-    char range_text[32];
-    char speed_text[32];
+    char line1[32];
+    char line2[32];
+    char line3[32];
+    char line4[32];
 
-    snprintf(soc_text, sizeof(soc_text), "SOC %d%%", state->obd.soc_percent);
-    snprintf(range_text, sizeof(range_text), "RANGE %d km", state->obd.range_km);
-    snprintf(speed_text, sizeof(speed_text), "SPEED %d km/h", state->obd.speed_kmh);
+    switch (vehicle->scenario)
+    {
+    case ECHOEAR_VEHICLE_SCENARIO_CHARGING:
+        snprintf(line1, sizeof(line1), "CHARGING");
+        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
+        snprintf(line3, sizeof(line3), "POWER %.1f kW", vehicle->charge_power_kw);
+        snprintf(line4, sizeof(line4), "LIMIT %d%%", vehicle->charge_limit_percent);
+        break;
 
-    lv_label_set_text(car_line_1, state->obd.status);
-    lv_label_set_text(car_line_2, soc_text);
-    lv_label_set_text(car_line_3, range_text);
-    lv_label_set_text(car_line_4, speed_text);
+    case ECHOEAR_VEHICLE_SCENARIO_LOW_BATTERY:
+        snprintf(line1, sizeof(line1), "LOW BATTERY");
+        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
+        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
+        snprintf(line4, sizeof(line4), "CHARGE SOON");
+        break;
+
+    case ECHOEAR_VEHICLE_SCENARIO_DOOR_OPEN:
+        snprintf(line1, sizeof(line1), "DOOR OPEN");
+        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
+        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
+        snprintf(line4, sizeof(line4), "%s", vehicle->locked ? "LOCKED" : "UNLOCKED");
+        break;
+
+    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_STALE:
+        snprintf(line1, sizeof(line1), "DATA STALE");
+        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
+        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
+        snprintf(line4, sizeof(line4), "CHECK REFRESH");
+        break;
+
+    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_OFFLINE:
+        snprintf(line1, sizeof(line1), "CLOUD OFFLINE");
+        snprintf(line2, sizeof(line2), "SOC --%%");
+        snprintf(line3, sizeof(line3), "RANGE -- km");
+        snprintf(line4, sizeof(line4), "RETRYING...");
+        break;
+
+    case ECHOEAR_VEHICLE_SCENARIO_DRIVING_GPS:
+        snprintf(line1, sizeof(line1), "DRIVING");
+        snprintf(line2, sizeof(line2), "SPEED %.0f km/h", vehicle->speed_kph);
+        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
+        if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_PHONE_GPS)
+            snprintf(line4, sizeof(line4), "SOURCE GPS");
+        else if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_OBD)
+            snprintf(line4, sizeof(line4), "SOURCE OBD");
+        else if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_VEHICLE)
+            snprintf(line4, sizeof(line4), "SOURCE CAR");
+        else
+            snprintf(line4, sizeof(line4), "SOURCE --");
+        break;
+
+    case ECHOEAR_VEHICLE_SCENARIO_PARKED:
+    default:
+        snprintf(line1, sizeof(line1), "%s",
+                 vehicle->status[0] != '\0' ? vehicle->status : "VEHICLE READY");
+        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
+        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
+        snprintf(line4, sizeof(line4), "%s", vehicle->locked ? "LOCKED" : "UNLOCKED");
+        break;
+    }
+
+    lv_label_set_text(car_line_1, line1);
+    lv_label_set_text(car_line_2, line2);
+    lv_label_set_text(car_line_3, line3);
+    lv_label_set_text(car_line_4, line4);
 }
 
 void echoear_pro_ui_create(void)
@@ -297,6 +388,15 @@ void echoear_pro_ui_create(void)
 
 void echoear_pro_ui_set_state(echoear_face_state_t state)
 {
+    if (current_state_valid && current_state == state && current_anim != NULL)
+    {
+        if (current_anim->show_car_panel)
+        {
+            update_car_panel_from_state();
+        }
+        return;
+    }
+
     switch (state)
     {
     case ECHOEAR_FACE_NORMAL_ANGRY:
@@ -353,11 +453,34 @@ void echoear_pro_ui_set_state(echoear_face_state_t state)
     case ECHOEAR_FACE_CAR_OBD_READY:
         current_anim = &anim_car_obd_ready;
         break;
+    case ECHOEAR_FACE_CAR_PARKED:
+        current_anim = &anim_car_parked;
+        break;
+    case ECHOEAR_FACE_CAR_CHARGING:
+        current_anim = &anim_car_charging;
+        break;
+    case ECHOEAR_FACE_CAR_LOW_BATTERY:
+        current_anim = &anim_car_low_battery;
+        break;
+    case ECHOEAR_FACE_CAR_DOOR_OPEN:
+        current_anim = &anim_car_door_open;
+        break;
+    case ECHOEAR_FACE_CAR_CLOUD_STALE:
+        current_anim = &anim_car_cloud_stale;
+        break;
+    case ECHOEAR_FACE_CAR_CLOUD_OFFLINE:
+        current_anim = &anim_car_cloud_offline;
+        break;
+    case ECHOEAR_FACE_CAR_DRIVING:
+        current_anim = &anim_car_driving;
+        break;
     default:
         current_anim = &anim_normal_idle;
         break;
     }
 
+    current_state = state;
+    current_state_valid = true;
     current_frame = 0;
     lv_image_set_src(face_img, current_anim->frames[0]);
     echoear_app_state_t *state_data = echoear_app_state_get();
@@ -376,6 +499,43 @@ void echoear_pro_ui_set_state(echoear_face_state_t state)
     else
     {
         lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void echoear_pro_ui_apply_vehicle_state(void)
+{
+    echoear_app_state_t *state = echoear_app_state_get();
+
+    if (!state->car_mode)
+    {
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_IDLE);
+        return;
+    }
+
+    switch (state->vehicle.scenario)
+    {
+    case ECHOEAR_VEHICLE_SCENARIO_CHARGING:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_CHARGING);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_LOW_BATTERY:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_LOW_BATTERY);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_DOOR_OPEN:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_DOOR_OPEN);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_STALE:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_CLOUD_STALE);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_OFFLINE:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_CLOUD_OFFLINE);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_DRIVING_GPS:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_DRIVING);
+        break;
+    case ECHOEAR_VEHICLE_SCENARIO_PARKED:
+    default:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_CAR_PARKED);
+        break;
     }
 }
 
