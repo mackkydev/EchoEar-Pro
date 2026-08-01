@@ -2,6 +2,7 @@
 #include "echoear_app_state.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #define COLOR_BG 0x000000
 #define COLOR_CYAN 0x43F5E8
@@ -12,20 +13,14 @@ typedef struct
     const char **frames;
     uint8_t frame_count;
     uint16_t interval_ms;
-    bool show_car_panel;
-    const char *line1;
-    const char *line2;
-    const char *line3;
-    const char *line4;
+    bool show_status_bar;
 } echoear_anim_t;
 
 static lv_obj_t *screen_circle;
 static lv_obj_t *face_img;
-static lv_obj_t *car_panel;
-static lv_obj_t *car_line_1;
-static lv_obj_t *car_line_2;
-static lv_obj_t *car_line_3;
-static lv_obj_t *car_line_4;
+static lv_obj_t *status_bar;
+static lv_obj_t *status_line_main;
+static lv_obj_t *status_line_info;
 
 static lv_timer_t *anim_timer;
 static const echoear_anim_t *current_anim;
@@ -134,100 +129,81 @@ static const char *car_obd_ready[] = {
 /* ---------- animations ------------------------------------------------------------ */
 
 static const echoear_anim_t anim_normal_angry = {
-    normal_angry, 3, 260, false, NULL, NULL, NULL, NULL};
+    normal_angry, 3, 260, false};
 
 static const echoear_anim_t anim_normal_confused = {
-    normal_confused, 4, 320, false, NULL, NULL, NULL, NULL};
+    normal_confused, 4, 320, false};
 
 static const echoear_anim_t anim_normal_happy = {
-    normal_happy, 2, 420, false, NULL, NULL, NULL, NULL};
+    normal_happy, 2, 420, false};
 
 static const echoear_anim_t anim_normal_idle = {
-    normal_idle, 5, 600, false, NULL, NULL, NULL, NULL};
+    normal_idle, 5, 600, false};
 
 static const echoear_anim_t anim_normal_listening = {
-    normal_listening, 2, 380, false, NULL, NULL, NULL, NULL};
+    normal_listening, 2, 380, false};
 
 static const echoear_anim_t anim_normal_sad = {
-    normal_sad, 2, 600, false, NULL, NULL, NULL, NULL};
+    normal_sad, 2, 600, false};
 
 static const echoear_anim_t anim_normal_sleeping = {
-    normal_sleeping, 3, 700, false, NULL, NULL, NULL, NULL};
+    normal_sleeping, 3, 700, false};
 
 static const echoear_anim_t anim_normal_speaking = {
-    normal_speaking, 4, 160, false, NULL, NULL, NULL, NULL};
+    normal_speaking, 4, 160, false};
 
 static const echoear_anim_t anim_normal_surprised = {
-    normal_surprised, 3, 260, false, NULL, NULL, NULL, NULL};
+    normal_surprised, 3, 260, false};
 
 static const echoear_anim_t anim_normal_thinking = {
-    normal_thinking, 3, 450, false, NULL, NULL, NULL, NULL};
+    normal_thinking, 3, 450, false};
 
 static const echoear_anim_t anim_normal_wink = {
-    normal_wink, 3, 300, false, NULL, NULL, NULL, NULL};
+    normal_wink, 3, 300, false};
 
 static const echoear_anim_t anim_system_error = {
-    system_error, 2, 450, false, NULL, NULL, NULL, NULL};
+    system_error, 2, 450, false};
 
 static const echoear_anim_t anim_system_low_battery = {
-    system_low_battery, 2, 550, false, NULL, NULL, NULL, NULL};
+    system_low_battery, 2, 550, false};
 
 static const echoear_anim_t anim_system_ota_updating = {
-    system_ota_updating, 8, 160, false, NULL, NULL, NULL, NULL};
+    system_ota_updating, 8, 160, false};
 
 static const echoear_anim_t anim_system_wifi_setup = {
-    system_wifi_setup, 2, 500, false, NULL, NULL, NULL, NULL};
+    system_wifi_setup, 2, 500, false};
 
 static const echoear_anim_t anim_car_obd_connecting = {
-    car_obd_connecting, 3, 320, true,
-    "OBD CONNECTING",
-    "SOC --%",
-    "RANGE -- km",
-    "SPEED -- km/h"};
+    car_obd_connecting, 3, 320, true};
 
 static const echoear_anim_t anim_car_obd_error = {
-    car_obd_error, 3, 500, true,
-    "OBD ERROR",
-    "SOC --%",
-    "RANGE -- km",
-    "CHECK CONNECTION"};
+    car_obd_error, 3, 500, true};
 
 static const echoear_anim_t anim_car_obd_ready = {
-    car_obd_ready, 3, 350, true,
-    "OBD READY",
-    "SOC 82%",
-    "RANGE 478 km",
-    "SPEED 0 km/h"};
+    car_obd_ready, 3, 350, true};
 
 /* Module 3A reuses existing graphics. Module 3B can replace each frame set
    with dedicated vehicle-state artwork without changing the state model. */
 static const echoear_anim_t anim_car_parked = {
-    car_obd_ready, 3, 420, true,
-    "VEHICLE READY", "SOC --%", "RANGE -- km", "LOCKED"};
+    car_obd_ready, 3, 420, true};
 
 static const echoear_anim_t anim_car_charging = {
-    normal_happy, 2, 420, true,
-    "CHARGING", "SOC --%", "POWER -- kW", "LIMIT --%"};
+    normal_happy, 2, 420, true};
 
 static const echoear_anim_t anim_car_low_battery = {
-    system_low_battery, 2, 550, true,
-    "LOW BATTERY", "SOC --%", "RANGE -- km", "CHARGE SOON"};
+    system_low_battery, 2, 550, true};
 
 static const echoear_anim_t anim_car_door_open = {
-    normal_confused, 4, 380, true,
-    "DOOR OPEN", "SOC --%", "RANGE -- km", "UNLOCKED"};
+    normal_confused, 4, 380, true};
 
 static const echoear_anim_t anim_car_cloud_stale = {
-    normal_thinking, 3, 650, true,
-    "DATA STALE", "SOC --%", "RANGE -- km", "CHECK REFRESH"};
+    normal_thinking, 3, 650, true};
 
 static const echoear_anim_t anim_car_cloud_offline = {
-    car_obd_error, 2, 650, true,
-    "CLOUD OFFLINE", "SOC --%", "RANGE -- km", "RETRYING..."};
+    car_obd_error, 2, 650, true};
 
 static const echoear_anim_t anim_car_driving = {
-    car_obd_ready, 3, 240, true,
-    "DRIVING", "SPEED -- km/h", "RANGE -- km", "SOURCE --"};
+    car_obd_ready, 3, 240, true};
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
@@ -247,100 +223,151 @@ static void anim_timer_cb(lv_timer_t *timer)
     lv_image_set_src(face_img, current_anim->frames[current_frame]);
 }
 
-static lv_obj_t *make_panel(lv_obj_t *parent)
+static const char *speed_source_label(echoear_speed_source_t source)
+{
+    switch (source)
+    {
+    case ECHOEAR_SPEED_SOURCE_PHONE_GPS:
+        return "GPS";
+    case ECHOEAR_SPEED_SOURCE_OBD:
+        return "OBD";
+    case ECHOEAR_SPEED_SOURCE_VEHICLE:
+        return "VEHICLE";
+    case ECHOEAR_SPEED_SOURCE_UNAVAILABLE:
+    default:
+        return "--";
+    }
+}
+
+static void set_label_text_if_changed(lv_obj_t *label, const char *text)
+{
+    const char *current_text;
+
+    if (label == NULL || text == NULL)
+    {
+        return;
+    }
+
+    current_text = lv_label_get_text(label);
+    if (current_text == NULL || strcmp(current_text, text) != 0)
+    {
+        lv_label_set_text(label, text);
+    }
+}
+
+static lv_obj_t *make_status_bar(lv_obj_t *parent)
 {
     lv_obj_t *obj = lv_obj_create(parent);
     lv_obj_remove_style_all(obj);
-    lv_obj_set_size(obj, 248, 76);
-    lv_obj_align(obj, LV_ALIGN_BOTTOM_MID, 0, -50);
-    lv_obj_set_style_radius(obj, 18, 0);
-    lv_obj_set_style_bg_color(obj, lv_color_hex(0x041018), 0);
-    lv_obj_set_style_bg_opa(obj, LV_OPA_80, 0);
-    lv_obj_set_style_border_width(obj, 1, 0);
-    lv_obj_set_style_border_color(obj, lv_color_hex(COLOR_CYAN), 0);
-    lv_obj_set_style_border_opa(obj, LV_OPA_70, 0);
-    lv_obj_set_style_shadow_width(obj, 24, 0);
-    lv_obj_set_style_shadow_spread(obj, 2, 0);
-    lv_obj_set_style_shadow_color(obj, lv_color_hex(COLOR_CYAN), 0);
-    lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
+    lv_obj_set_size(obj, 284, 56);
+    lv_obj_align(obj, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
     return obj;
 }
 
-static void update_car_panel_from_state(void)
+static void update_status_lines_from_state(void)
 {
     echoear_app_state_t *state = echoear_app_state_get();
     echoear_vehicle_state_t *vehicle = &state->vehicle;
+    char main_line[72];
+    char info_line[160];
 
-    char line1[32];
-    char line2[32];
-    char line3[32];
-    char line4[32];
-
-    switch (vehicle->scenario)
+    if (current_state == ECHOEAR_FACE_CAR_OBD_CONNECTING)
     {
-    case ECHOEAR_VEHICLE_SCENARIO_CHARGING:
-        snprintf(line1, sizeof(line1), "CHARGING");
-        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
-        snprintf(line3, sizeof(line3), "POWER %.1f kW", vehicle->charge_power_kw);
-        snprintf(line4, sizeof(line4), "LIMIT %d%%", vehicle->charge_limit_percent);
-        break;
+        snprintf(main_line, sizeof(main_line), "VEHICLE CONNECTING");
+        snprintf(info_line, sizeof(info_line), "WAITING FOR VEHICLE DATA...");
+    }
+    else if (current_state == ECHOEAR_FACE_CAR_OBD_ERROR)
+    {
+        snprintf(main_line, sizeof(main_line), "VEHICLE ERROR");
+        snprintf(info_line, sizeof(info_line), "CHECK GATEWAY OR DATA CONNECTION");
+    }
+    else if (current_state == ECHOEAR_FACE_CAR_OBD_READY)
+    {
+        snprintf(main_line, sizeof(main_line), "%s | %s",
+                 vehicle->status[0] != '\0' ? vehicle->status : "VEHICLE READY",
+                 vehicle->locked ? "LOCKED" : "UNLOCKED");
+        snprintf(info_line, sizeof(info_line),
+                 "SOC %d%% | RANGE %d km | SPEED %.0f km/h",
+                 vehicle->soc_percent,
+                 vehicle->range_km,
+                 vehicle->speed_kph);
+    }
+    else
+    {
+        switch (vehicle->scenario)
+        {
+        case ECHOEAR_VEHICLE_SCENARIO_CHARGING:
+            snprintf(main_line, sizeof(main_line),
+                     "CHARGING | SOC %d%% | %.1f kW",
+                     vehicle->soc_percent,
+                     vehicle->charge_power_kw);
+            snprintf(info_line, sizeof(info_line),
+                     "LIMIT %d%% | RANGE %d km | %s",
+                     vehicle->charge_limit_percent,
+                     vehicle->range_km,
+                     vehicle->plugged_in ? "PLUGGED IN" : "NOT PLUGGED IN");
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_LOW_BATTERY:
-        snprintf(line1, sizeof(line1), "LOW BATTERY");
-        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
-        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
-        snprintf(line4, sizeof(line4), "CHARGE SOON");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_LOW_BATTERY:
+            snprintf(main_line, sizeof(main_line),
+                     "LOW BATTERY | SOC %d%%",
+                     vehicle->soc_percent);
+            snprintf(info_line, sizeof(info_line),
+                     "CHARGE SOON | EST. RANGE %d km",
+                     vehicle->range_km);
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_DOOR_OPEN:
-        snprintf(line1, sizeof(line1), "DOOR OPEN");
-        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
-        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
-        snprintf(line4, sizeof(line4), "%s", vehicle->locked ? "LOCKED" : "UNLOCKED");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_DOOR_OPEN:
+            snprintf(main_line, sizeof(main_line),
+                     "DOOR OPEN | %s",
+                     vehicle->locked ? "LOCKED" : "UNLOCKED");
+            snprintf(info_line, sizeof(info_line),
+                     "SOC %d%% | RANGE %d km",
+                     vehicle->soc_percent,
+                     vehicle->range_km);
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_STALE:
-        snprintf(line1, sizeof(line1), "DATA STALE");
-        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
-        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
-        snprintf(line4, sizeof(line4), "CHECK REFRESH");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_CLOUD_STALE:
+            snprintf(main_line, sizeof(main_line), "DATA STALE");
+            snprintf(info_line, sizeof(info_line),
+                     "LAST KNOWN DATA | SOC %d%% | RANGE %d km | REFRESH REQUIRED",
+                     vehicle->soc_percent,
+                     vehicle->range_km);
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_CLOUD_OFFLINE:
-        snprintf(line1, sizeof(line1), "CLOUD OFFLINE");
-        snprintf(line2, sizeof(line2), "SOC --%%");
-        snprintf(line3, sizeof(line3), "RANGE -- km");
-        snprintf(line4, sizeof(line4), "RETRYING...");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_CLOUD_OFFLINE:
+            snprintf(main_line, sizeof(main_line), "CLOUD OFFLINE");
+            snprintf(info_line, sizeof(info_line),
+                     "RETRYING CONNECTION TO GATEWAY...");
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_DRIVING_GPS:
-        snprintf(line1, sizeof(line1), "DRIVING");
-        snprintf(line2, sizeof(line2), "SPEED %.0f km/h", vehicle->speed_kph);
-        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
-        if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_PHONE_GPS)
-            snprintf(line4, sizeof(line4), "SOURCE GPS");
-        else if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_OBD)
-            snprintf(line4, sizeof(line4), "SOURCE OBD");
-        else if (vehicle->speed_source == ECHOEAR_SPEED_SOURCE_VEHICLE)
-            snprintf(line4, sizeof(line4), "SOURCE CAR");
-        else
-            snprintf(line4, sizeof(line4), "SOURCE --");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_DRIVING_GPS:
+            snprintf(main_line, sizeof(main_line),
+                     "DRIVING | %.0f km/h",
+                     vehicle->speed_kph);
+            snprintf(info_line, sizeof(info_line),
+                     "RANGE %d km | SOURCE %s | BATTERY %d%%",
+                     vehicle->range_km,
+                     speed_source_label(vehicle->speed_source),
+                     vehicle->soc_percent);
+            break;
 
-    case ECHOEAR_VEHICLE_SCENARIO_PARKED:
-    default:
-        snprintf(line1, sizeof(line1), "%s",
-                 vehicle->status[0] != '\0' ? vehicle->status : "VEHICLE READY");
-        snprintf(line2, sizeof(line2), "SOC %d%%", vehicle->soc_percent);
-        snprintf(line3, sizeof(line3), "RANGE %d km", vehicle->range_km);
-        snprintf(line4, sizeof(line4), "%s", vehicle->locked ? "LOCKED" : "UNLOCKED");
-        break;
+        case ECHOEAR_VEHICLE_SCENARIO_PARKED:
+        default:
+            snprintf(main_line, sizeof(main_line), "%s | %s",
+                     vehicle->status[0] != '\0' ? vehicle->status : "VEHICLE READY",
+                     vehicle->locked ? "LOCKED" : "UNLOCKED");
+            snprintf(info_line, sizeof(info_line),
+                     "SOC %d%% | RANGE %d km",
+                     vehicle->soc_percent,
+                     vehicle->range_km);
+            break;
+        }
     }
 
-    lv_label_set_text(car_line_1, line1);
-    lv_label_set_text(car_line_2, line2);
-    lv_label_set_text(car_line_3, line3);
-    lv_label_set_text(car_line_4, line4);
+    set_label_text_if_changed(status_line_main, main_line);
+    set_label_text_if_changed(status_line_info, info_line);
 }
 
 void echoear_pro_ui_create(void)
@@ -361,27 +388,26 @@ void echoear_pro_ui_create(void)
     lv_obj_set_style_clip_corner(screen_circle, true, 0);
 
     face_img = lv_image_create(screen_circle);
-    lv_obj_align(face_img, LV_ALIGN_CENTER, 0, -34);
+    lv_obj_align(face_img, LV_ALIGN_CENTER, 0, 0);
 
-    car_panel = make_panel(screen_circle);
+    status_bar = make_status_bar(screen_circle);
 
-    car_line_1 = lv_label_create(car_panel);
-    lv_obj_set_style_text_color(car_line_1, lv_color_hex(COLOR_CYAN), 0);
-    lv_obj_align(car_line_1, LV_ALIGN_TOP_MID, 0, 8);
+    status_line_main = lv_label_create(status_bar);
+    lv_obj_set_size(status_line_main, 264, 22);
+    lv_obj_align(status_line_main, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_text_color(status_line_main, lv_color_hex(COLOR_CYAN), 0);
+    lv_obj_set_style_text_align(status_line_main, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(status_line_main, LV_LABEL_LONG_CLIP);
 
-    car_line_2 = lv_label_create(car_panel);
-    lv_obj_set_style_text_color(car_line_2, lv_color_hex(COLOR_TEXT), 0);
-    lv_obj_align(car_line_2, LV_ALIGN_TOP_LEFT, 18, 31);
+    status_line_info = lv_label_create(status_bar);
+    lv_obj_set_size(status_line_info, 218, 20);
+    lv_obj_align(status_line_info, LV_ALIGN_TOP_MID, 0, 27);
+    lv_obj_set_style_text_color(status_line_info, lv_color_hex(COLOR_TEXT), 0);
+    lv_obj_set_style_text_align(status_line_info, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_anim_duration(status_line_info, 6500, 0);
+    lv_label_set_long_mode(status_line_info, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
-    car_line_3 = lv_label_create(car_panel);
-    lv_obj_set_style_text_color(car_line_3, lv_color_hex(COLOR_TEXT), 0);
-    lv_obj_align(car_line_3, LV_ALIGN_TOP_RIGHT, -18, 31);
-
-    car_line_4 = lv_label_create(car_panel);
-    lv_obj_set_style_text_color(car_line_4, lv_color_hex(0x9CFDF5), 0);
-    lv_obj_align(car_line_4, LV_ALIGN_TOP_MID, 0, 54);
-
-    lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(status_bar, LV_OBJ_FLAG_HIDDEN);
 
     anim_timer = lv_timer_create(anim_timer_cb, 400, NULL);
 }
@@ -390,9 +416,9 @@ void echoear_pro_ui_set_state(echoear_face_state_t state)
 {
     if (current_state_valid && current_state == state && current_anim != NULL)
     {
-        if (current_anim->show_car_panel)
+        if (current_anim->show_status_bar)
         {
-            update_car_panel_from_state();
+            update_status_lines_from_state();
         }
         return;
     }
@@ -491,14 +517,16 @@ void echoear_pro_ui_set_state(echoear_face_state_t state)
 
     lv_timer_set_period(anim_timer, period);
 
-    if (current_anim->show_car_panel)
+    if (current_anim->show_status_bar)
     {
-        lv_obj_remove_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
-        update_car_panel_from_state();
+        lv_obj_align(face_img, LV_ALIGN_CENTER, 0, -48);
+        lv_obj_remove_flag(status_bar, LV_OBJ_FLAG_HIDDEN);
+        update_status_lines_from_state();
     }
     else
     {
-        lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_align(face_img, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_add_flag(status_bar, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -546,9 +574,9 @@ void echoear_pro_ui_refresh(void)
         return;
     }
 
-    if (current_anim->show_car_panel)
+    if (current_anim->show_status_bar)
     {
-        update_car_panel_from_state();
+        update_status_lines_from_state();
     }
 
     if (anim_timer != NULL)
