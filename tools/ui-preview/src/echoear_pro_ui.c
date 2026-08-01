@@ -1,285 +1,404 @@
 #include "echoear_pro_ui.h"
+#include "echoear_app_state.h"
 #include <stdbool.h>
+#include <stdio.h>
 
-#define COLOR_BG        0x000000
-#define COLOR_PANEL     0x05070D
-#define COLOR_WHITE     0xF4F7FF
-#define COLOR_WHITE_DIM 0xAEB6C8
-#define COLOR_CYAN      0x43F5E8
-#define COLOR_CYAN_DIM  0x155A63
-#define COLOR_DARK_LINE 0x10131C
+#define COLOR_BG 0x000000
+#define COLOR_CYAN 0x43F5E8
+#define COLOR_TEXT 0xEAFBFF
 
-static lv_obj_t *title_label;
-static lv_obj_t *subtitle_label;
+typedef struct
+{
+    const char **frames;
+    uint8_t frame_count;
+    uint16_t interval_ms;
+    bool show_car_panel;
+    const char *line1;
+    const char *line2;
+    const char *line3;
+    const char *line4;
+} echoear_anim_t;
 
-static lv_obj_t *left_glow;
-static lv_obj_t *right_glow;
-static lv_obj_t *mouth_glow;
-
-static lv_obj_t *left_eye;
-static lv_obj_t *right_eye;
-static lv_obj_t *mouth;
-
-static lv_obj_t *status_label;
-static lv_obj_t *mode_label;
-static lv_obj_t *bar;
-
+static lv_obj_t *screen_circle;
+static lv_obj_t *face_img;
 static lv_obj_t *car_panel;
 static lv_obj_t *car_line_1;
 static lv_obj_t *car_line_2;
 static lv_obj_t *car_line_3;
 static lv_obj_t *car_line_4;
 
-static lv_obj_t *left_scan[5];
-static lv_obj_t *right_scan[5];
-static lv_obj_t *mouth_scan[4];
+static lv_timer_t *anim_timer;
+static const echoear_anim_t *current_anim;
+static uint8_t current_frame;
 
-static lv_obj_t *make_box(lv_obj_t *parent, int w, int h, uint32_t color, int radius, lv_opa_t opa)
+/* ---------- frame paths ------------------------------------------------------------ */
+/* ถ้ารูปไม่ขึ้นทีหลัง เดี๋ยวค่อยเปลี่ยน path เป็น A:/assets/... */
+
+/* ---------- Nomail ---------- */
+static const char *normal_angry[] = {
+    "A:assets/faces/normal/angry/face_angry_01.png",
+    "A:assets/faces/normal/angry/face_angry_02.png",
+    "A:assets/faces/normal/angry/face_angry_03.png"};
+
+static const char *normal_confused[] = {
+    "A:assets/faces/normal/confused/face_confused_01.png",
+    "A:assets/faces/normal/confused/face_confused_02.png",
+    "A:assets/faces/normal/confused/face_confused_03.png",
+    "A:assets/faces/normal/confused/face_confused_04.png"};
+
+static const char *normal_happy[] = {
+    "A:assets/faces/normal/happy/face_happy_01.png",
+    "A:assets/faces/normal/happy/face_happy_02.png"};
+
+static const char *normal_idle[] = {
+    "A:assets/faces/normal/idle/face_idle_01.png",
+    "A:assets/faces/normal/idle/face_idle_02.png",
+    "A:assets/faces/normal/idle/face_idle_03.png",
+    "A:assets/faces/normal/idle/face_idle_04.png",
+    "A:assets/faces/normal/idle/face_idle_05.png"};
+
+static const char *normal_listening[] = {
+    "A:assets/faces/normal/listening/face_listening_01.png",
+    "A:assets/faces/normal/listening/face_listening_02.png"};
+
+static const char *normal_sad[] = {
+    "A:assets/faces/normal/sad/face_sad_01.png",
+    "A:assets/faces/normal/sad/face_sad_02.png"};
+
+static const char *normal_sleeping[] = {
+    "A:assets/faces/normal/sleeping/face_sleeping_01.png",
+    "A:assets/faces/normal/sleeping/face_sleeping_02.png",
+    "A:assets/faces/normal/sleeping/face_sleeping_03.png"};
+
+static const char *normal_speaking[] = {
+    "A:assets/faces/normal/speaking/face_speaking_01.png",
+    "A:assets/faces/normal/speaking/face_speaking_02.png",
+    "A:assets/faces/normal/speaking/face_speaking_03.png",
+    "A:assets/faces/normal/speaking/face_speaking_04.png"};
+
+static const char *normal_surprised[] = {
+    "A:assets/faces/normal/surprised/face_surprised_01.png",
+    "A:assets/faces/normal/surprised/face_surprised_02.png",
+    "A:assets/faces/normal/surprised/face_surprised_03.png"};
+
+static const char *normal_thinking[] = {
+    "A:assets/faces/normal/thinking/face_thinking_01.png",
+    "A:assets/faces/normal/thinking/face_thinking_02.png",
+    "A:assets/faces/normal/thinking/face_thinking_03.png"};
+
+static const char *normal_wink[] = {
+    "A:assets/faces/normal/wink/face_wink_01.png",
+    "A:assets/faces/normal/wink/face_wink_02.png",
+    "A:assets/faces/normal/wink/face_wink_03.png"};
+
+/* ---------- System ---------- */
+static const char *system_error[] = {
+    "A:assets/faces/system/error/face_error_01.png",
+    "A:assets/faces/system/error/face_error_02.png"};
+
+static const char *system_low_battery[] = {
+    "A:assets/faces/system/low_battery/face_low_battery_01.png",
+    "A:assets/faces/system/low_battery/face_low_battery_02.png"};
+
+static const char *system_ota_updating[] = {
+    "A:assets/faces/system/ota_updating/face_ota_updating_01.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_02.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_03.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_04.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_05.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_06.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_07.png",
+    "A:assets/faces/system/ota_updating/face_ota_updating_08.png"};
+
+static const char *system_wifi_setup[] = {
+    "A:assets/faces/system/wifi_setup/face_wifi_setup_01.png",
+    "A:assets/faces/system/wifi_setup/face_wifi_setup_02.png"};
+
+/* ---------- Car_OBD ---------- */
+static const char *car_obd_connecting[] = {
+    "A:assets/faces/car/obd_connecting/face_obd_connecting_01.png",
+    "A:assets/faces/car/obd_connecting/face_obd_connecting_02.png",
+    "A:assets/faces/car/obd_connecting/face_obd_connecting_03.png"};
+
+static const char *car_obd_error[] = {
+    "A:assets/faces/car/obd_error/face_obd_error_01.png",
+    "A:assets/faces/car/obd_error/face_obd_error_02.png"};
+
+static const char *car_obd_ready[] = {
+    "A:assets/faces/car/obd_ready/face_obd_ready_01.png",
+    "A:assets/faces/car/obd_ready/face_obd_ready_02.png",
+    "A:assets/faces/car/obd_ready/face_obd_ready_03.png"};
+
+/* ---------- animations ------------------------------------------------------------ */
+
+static const echoear_anim_t anim_normal_angry = {
+    normal_angry, 3, 260, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_confused = {
+    normal_confused, 4, 320, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_happy = {
+    normal_happy, 2, 420, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_idle = {
+    normal_idle, 5, 600, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_listening = {
+    normal_listening, 2, 380, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_sad = {
+    normal_sad, 2, 600, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_sleeping = {
+    normal_sleeping, 3, 700, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_speaking = {
+    normal_speaking, 4, 160, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_surprised = {
+    normal_surprised, 3, 260, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_thinking = {
+    normal_thinking, 3, 450, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_normal_wink = {
+    normal_wink, 3, 300, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_system_error = {
+    system_error, 2, 450, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_system_low_battery = {
+    system_low_battery, 2, 550, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_system_ota_updating = {
+    system_ota_updating, 8, 160, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_system_wifi_setup = {
+    system_wifi_setup, 2, 500, false, NULL, NULL, NULL, NULL};
+
+static const echoear_anim_t anim_car_obd_connecting = {
+    car_obd_connecting, 3, 320, true,
+    "OBD CONNECTING",
+    "SOC --%",
+    "RANGE -- km",
+    "SPEED -- km/h"};
+
+static const echoear_anim_t anim_car_obd_error = {
+    car_obd_error, 3, 500, true,
+    "OBD ERROR",
+    "SOC --%",
+    "RANGE -- km",
+    "CHECK CONNECTION"};
+
+static const echoear_anim_t anim_car_obd_ready = {
+    car_obd_ready, 3, 350, true,
+    "OBD READY",
+    "SOC 82%",
+    "RANGE 478 km",
+    "SPEED 0 km/h"};
+
+static void anim_timer_cb(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
+
+    if (current_anim == NULL || current_anim->frame_count == 0)
+    {
+        return;
+    }
+
+    current_frame++;
+    if (current_frame >= current_anim->frame_count)
+    {
+        current_frame = 0;
+    }
+
+    lv_image_set_src(face_img, current_anim->frames[current_frame]);
+}
+
+static lv_obj_t *make_panel(lv_obj_t *parent)
 {
     lv_obj_t *obj = lv_obj_create(parent);
     lv_obj_remove_style_all(obj);
-    lv_obj_set_size(obj, w, h);
-    lv_obj_set_style_radius(obj, radius, 0);
-    lv_obj_set_style_bg_color(obj, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_opa(obj, opa, 0);
-    lv_obj_set_style_border_width(obj, 0, 0);
+    lv_obj_set_size(obj, 248, 76);
+    lv_obj_align(obj, LV_ALIGN_BOTTOM_MID, 0, -50);
+    lv_obj_set_style_radius(obj, 18, 0);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0x041018), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_80, 0);
+    lv_obj_set_style_border_width(obj, 1, 0);
+    lv_obj_set_style_border_color(obj, lv_color_hex(COLOR_CYAN), 0);
+    lv_obj_set_style_border_opa(obj, LV_OPA_70, 0);
+    lv_obj_set_style_shadow_width(obj, 24, 0);
+    lv_obj_set_style_shadow_spread(obj, 2, 0);
+    lv_obj_set_style_shadow_color(obj, lv_color_hex(COLOR_CYAN), 0);
+    lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
     return obj;
 }
 
-static void apply_glow(lv_obj_t *obj, uint32_t color, lv_opa_t opa)
+static void update_car_panel_from_state(void)
 {
-    lv_obj_set_style_shadow_width(obj, 24, 0);
-    lv_obj_set_style_shadow_spread(obj, 2, 0);
-    lv_obj_set_style_shadow_color(obj, lv_color_hex(color), 0);
-    lv_obj_set_style_shadow_opa(obj, opa, 0);
-}
+    echoear_app_state_t *state = echoear_app_state_get();
 
-static void create_scanlines(lv_obj_t *parent, lv_obj_t **lines, int count)
-{
-    for(int i = 0; i < count; i++) {
-        lines[i] = make_box(parent, 120, 2, COLOR_DARK_LINE, 1, LV_OPA_30);
-        lv_obj_align(lines[i], LV_ALIGN_CENTER, 0, -12 + (i * 6));
-    }
-}
+    char soc_text[32];
+    char range_text[32];
+    char speed_text[32];
 
-static void set_scan_visible(lv_obj_t **lines, int count, bool visible)
-{
-    for(int i = 0; i < count; i++) {
-        if(visible) lv_obj_remove_flag(lines[i], LV_OBJ_FLAG_HIDDEN);
-        else lv_obj_add_flag(lines[i], LV_OBJ_FLAG_HIDDEN);
-    }
-}
+    snprintf(soc_text, sizeof(soc_text), "SOC %d%%", state->obd.soc_percent);
+    snprintf(range_text, sizeof(range_text), "RANGE %d km", state->obd.range_km);
+    snprintf(speed_text, sizeof(speed_text), "SPEED %d km/h", state->obd.speed_kmh);
 
-static void set_led_color(uint32_t color, lv_opa_t opa)
-{
-    lv_obj_set_style_bg_color(left_eye, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_color(right_eye, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_color(mouth, lv_color_hex(color), 0);
-
-    lv_obj_set_style_bg_opa(left_eye, opa, 0);
-    lv_obj_set_style_bg_opa(right_eye, opa, 0);
-    lv_obj_set_style_bg_opa(mouth, opa, 0);
-
-    lv_obj_set_style_bg_color(left_glow, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_color(right_glow, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_color(mouth_glow, lv_color_hex(color), 0);
-
-    apply_glow(left_eye, color, LV_OPA_70);
-    apply_glow(right_eye, color, LV_OPA_70);
-    apply_glow(mouth, color, LV_OPA_50);
-}
-
-static void set_face_shape(
-    int eye_w, int eye_h,
-    int mouth_w, int mouth_h,
-    int eye_radius, int mouth_radius,
-    int eye_y, int mouth_y
-)
-{
-    lv_obj_set_size(left_glow, eye_w + 18, eye_h + 14);
-    lv_obj_set_size(right_glow, eye_w + 18, eye_h + 14);
-    lv_obj_set_size(mouth_glow, mouth_w + 16, mouth_h + 10);
-
-    lv_obj_set_size(left_eye, eye_w, eye_h);
-    lv_obj_set_size(right_eye, eye_w, eye_h);
-    lv_obj_set_size(mouth, mouth_w, mouth_h);
-
-    lv_obj_set_style_radius(left_glow, eye_radius + 8, 0);
-    lv_obj_set_style_radius(right_glow, eye_radius + 8, 0);
-    lv_obj_set_style_radius(mouth_glow, mouth_radius + 6, 0);
-
-    lv_obj_set_style_radius(left_eye, eye_radius, 0);
-    lv_obj_set_style_radius(right_eye, eye_radius, 0);
-    lv_obj_set_style_radius(mouth, mouth_radius, 0);
-
-    lv_obj_align(left_glow, LV_ALIGN_CENTER, -52, eye_y);
-    lv_obj_align(right_glow, LV_ALIGN_CENTER, 52, eye_y);
-    lv_obj_align(mouth_glow, LV_ALIGN_CENTER, 0, mouth_y);
-
-    lv_obj_align(left_eye, LV_ALIGN_CENTER, -52, eye_y);
-    lv_obj_align(right_eye, LV_ALIGN_CENTER, 52, eye_y);
-    lv_obj_align(mouth, LV_ALIGN_CENTER, 0, mouth_y);
-}
-
-static void set_car_panel_visible(bool visible)
-{
-    if(visible) {
-        lv_obj_remove_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_label_set_text(car_line_1, state->obd.status);
+    lv_label_set_text(car_line_2, soc_text);
+    lv_label_set_text(car_line_3, range_text);
+    lv_label_set_text(car_line_4, speed_text);
 }
 
 void echoear_pro_ui_create(void)
 {
     lv_obj_t *scr = lv_screen_active();
 
-    lv_obj_set_style_bg_color(scr, lv_color_hex(COLOR_BG), 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x303030), 0); /*เปลี่ยนสีพื้นหลังนอกจอ (scr, lv_color_hex(COLOR_BG), 0)*/
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
-    title_label = lv_label_create(scr);
-    lv_label_set_text(title_label, "EchoEar Pro");
-    lv_obj_set_style_text_color(title_label, lv_color_hex(COLOR_WHITE), 0);
-    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 12);
+    /* วงกลมจำลองจอจริง */
+    screen_circle = lv_obj_create(scr);
+    lv_obj_remove_style_all(screen_circle);
+    lv_obj_set_size(screen_circle, 360, 360);
+    lv_obj_center(screen_circle);
+    lv_obj_set_style_radius(screen_circle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(screen_circle, lv_color_hex(COLOR_BG), 0); /*เปลี่ยนสีพื้นจอ (scr, lv_color_hex((0x000000)), 0)*/
+    lv_obj_set_style_bg_opa(screen_circle, LV_OPA_COVER, 0);
+    lv_obj_set_style_clip_corner(screen_circle, true, 0);
 
-    subtitle_label = lv_label_create(scr);
-    lv_label_set_text(subtitle_label, "AI Companion");
-    lv_obj_set_style_text_color(subtitle_label, lv_color_hex(0x6E7488), 0);
-    lv_obj_align(subtitle_label, LV_ALIGN_TOP_MID, 0, 34);
+    face_img = lv_image_create(screen_circle);
+    lv_obj_align(face_img, LV_ALIGN_CENTER, 0, -34);
 
-    left_glow = make_box(scr, 90, 58, COLOR_WHITE, 30, LV_OPA_20);
-    right_glow = make_box(scr, 90, 58, COLOR_WHITE, 30, LV_OPA_20);
-    mouth_glow = make_box(scr, 96, 18, COLOR_WHITE, 12, LV_OPA_20);
-
-    left_eye = make_box(scr, 64, 38, COLOR_WHITE, 22, LV_OPA_COVER);
-    right_eye = make_box(scr, 64, 38, COLOR_WHITE, 22, LV_OPA_COVER);
-    mouth = make_box(scr, 76, 10, COLOR_WHITE, 8, LV_OPA_COVER);
-
-    create_scanlines(left_eye, left_scan, 5);
-    create_scanlines(right_eye, right_scan, 5);
-    create_scanlines(mouth, mouth_scan, 4);
-
-    status_label = lv_label_create(scr);
-    lv_obj_set_style_text_color(status_label, lv_color_hex(COLOR_WHITE_DIM), 0);
-    lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 58);
-
-    bar = lv_bar_create(scr);
-    lv_obj_set_size(bar, 180, 8);
-    lv_bar_set_range(bar, 0, 100);
-    lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, -22);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0x1C2233), 0);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(COLOR_WHITE), LV_PART_INDICATOR);
-
-    mode_label = lv_label_create(scr);
-    lv_obj_set_style_text_color(mode_label, lv_color_hex(0x626B80), 0);
-    lv_obj_align(mode_label, LV_ALIGN_BOTTOM_MID, 0, -5);
-
-    car_panel = lv_obj_create(scr);
-    lv_obj_remove_style_all(car_panel);
-    lv_obj_set_size(car_panel, 270, 72);
-    lv_obj_align(car_panel, LV_ALIGN_BOTTOM_MID, 0, -12);
-    lv_obj_set_style_radius(car_panel, 12, 0);
-    lv_obj_set_style_bg_color(car_panel, lv_color_hex(0x020A10), 0);
-    lv_obj_set_style_bg_opa(car_panel, LV_OPA_80, 0);
-    lv_obj_set_style_border_width(car_panel, 1, 0);
-    lv_obj_set_style_border_color(car_panel, lv_color_hex(COLOR_CYAN), 0);
-    lv_obj_set_style_border_opa(car_panel, LV_OPA_70, 0);
-    apply_glow(car_panel, COLOR_CYAN, LV_OPA_30);
+    car_panel = make_panel(screen_circle);
 
     car_line_1 = lv_label_create(car_panel);
-    lv_label_set_text(car_line_1, "OBD READY");
     lv_obj_set_style_text_color(car_line_1, lv_color_hex(COLOR_CYAN), 0);
-    lv_obj_align(car_line_1, LV_ALIGN_TOP_LEFT, 12, 8);
+    lv_obj_align(car_line_1, LV_ALIGN_TOP_MID, 0, 8);
 
     car_line_2 = lv_label_create(car_panel);
-    lv_label_set_text(car_line_2, "SOC 82%");
-    lv_obj_set_style_text_color(car_line_2, lv_color_hex(COLOR_WHITE), 0);
-    lv_obj_align(car_line_2, LV_ALIGN_TOP_LEFT, 12, 30);
+    lv_obj_set_style_text_color(car_line_2, lv_color_hex(COLOR_TEXT), 0);
+    lv_obj_align(car_line_2, LV_ALIGN_TOP_LEFT, 18, 31);
 
     car_line_3 = lv_label_create(car_panel);
-    lv_label_set_text(car_line_3, "RANGE 478km");
-    lv_obj_set_style_text_color(car_line_3, lv_color_hex(COLOR_WHITE), 0);
-    lv_obj_align(car_line_3, LV_ALIGN_TOP_RIGHT, -12, 30);
+    lv_obj_set_style_text_color(car_line_3, lv_color_hex(COLOR_TEXT), 0);
+    lv_obj_align(car_line_3, LV_ALIGN_TOP_RIGHT, -18, 31);
 
     car_line_4 = lv_label_create(car_panel);
-    lv_label_set_text(car_line_4, "SPEED 0 km/h");
     lv_obj_set_style_text_color(car_line_4, lv_color_hex(0x9CFDF5), 0);
-    lv_obj_align(car_line_4, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_align(car_line_4, LV_ALIGN_TOP_MID, 0, 54);
 
-    echoear_pro_ui_set_state(ECHOEAR_STATE_IDLE);
+    lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+
+    anim_timer = lv_timer_create(anim_timer_cb, 400, NULL);
 }
 
-void echoear_pro_ui_set_state(echoear_state_t state)
+void echoear_pro_ui_set_state(echoear_face_state_t state)
 {
-    set_car_panel_visible(false);
-    set_scan_visible(left_scan, 5, true);
-    set_scan_visible(right_scan, 5, true);
-    set_scan_visible(mouth_scan, 4, true);
+    switch (state)
+    {
+    case ECHOEAR_FACE_NORMAL_ANGRY:
+        current_anim = &anim_normal_angry;
+        break;
+    case ECHOEAR_FACE_NORMAL_CONFUSED:
+        current_anim = &anim_normal_confused;
+        break;
+    case ECHOEAR_FACE_NORMAL_HAPPY:
+        current_anim = &anim_normal_happy;
+        break;
+    case ECHOEAR_FACE_NORMAL_SAD:
+        current_anim = &anim_normal_sad;
+        break;
+    case ECHOEAR_FACE_NORMAL_SURPRISED:
+        current_anim = &anim_normal_surprised;
+        break;
+    case ECHOEAR_FACE_NORMAL_WINK:
+        current_anim = &anim_normal_wink;
+        break;
+    case ECHOEAR_FACE_NORMAL_IDLE:
+        current_anim = &anim_normal_idle;
+        break;
+    case ECHOEAR_FACE_NORMAL_LISTENING:
+        current_anim = &anim_normal_listening;
+        break;
+    case ECHOEAR_FACE_NORMAL_THINKING:
+        current_anim = &anim_normal_thinking;
+        break;
+    case ECHOEAR_FACE_NORMAL_SPEAKING:
+        current_anim = &anim_normal_speaking;
+        break;
+    case ECHOEAR_FACE_NORMAL_SLEEPING:
+        current_anim = &anim_normal_sleeping;
+        break;
+    case ECHOEAR_FACE_SYSTEM_ERROR:
+        current_anim = &anim_system_error;
+        break;
+    case ECHOEAR_FACE_SYSTEM_LOW_BATTERY:
+        current_anim = &anim_system_low_battery;
+        break;
+    case ECHOEAR_FACE_SYSTEM_OTA_UPDATING:
+        current_anim = &anim_system_ota_updating;
+        break;
+    case ECHOEAR_FACE_SYSTEM_WIFI_SETUP:
+        current_anim = &anim_system_wifi_setup;
+        break;
+    case ECHOEAR_FACE_CAR_OBD_CONNECTING:
+        current_anim = &anim_car_obd_connecting;
+        break;
+    case ECHOEAR_FACE_CAR_OBD_ERROR:
+        current_anim = &anim_car_obd_error;
+        break;
+    case ECHOEAR_FACE_CAR_OBD_READY:
+        current_anim = &anim_car_obd_ready;
+        break;
+    default:
+        current_anim = &anim_normal_idle;
+        break;
+    }
 
-    switch(state) {
-        case ECHOEAR_STATE_IDLE:
-            lv_label_set_text(status_label, "Idle");
-            lv_label_set_text(mode_label, "MODE: DESKTOP");
-            set_led_color(COLOR_WHITE, LV_OPA_COVER);
-            set_face_shape(58, 38, 70, 8, 20, 8, -26, 28);
-            lv_bar_set_value(bar, 25, LV_ANIM_ON);
-            break;
+    current_frame = 0;
+    lv_image_set_src(face_img, current_anim->frames[0]);
+    echoear_app_state_t *state_data = echoear_app_state_get();
 
-        case ECHOEAR_STATE_LISTENING:
-            lv_label_set_text(status_label, "Listening...");
-            lv_label_set_text(mode_label, "MODE: VOICE");
-            set_led_color(COLOR_WHITE, LV_OPA_COVER);
-            set_face_shape(72, 34, 92, 8, 18, 8, -28, 30);
-            lv_bar_set_value(bar, 70, LV_ANIM_ON);
-            break;
+    uint32_t period = (uint32_t)((float)current_anim->interval_ms / state_data->animation_speed);
+    if (period < 60)
+        period = 60;
 
-        case ECHOEAR_STATE_THINKING:
-            lv_label_set_text(status_label, "Thinking...");
-            lv_label_set_text(mode_label, "MODE: AI");
-            set_led_color(COLOR_WHITE, LV_OPA_COVER);
-            lv_obj_set_size(left_eye, 48, 42);
-            lv_obj_set_size(right_eye, 58, 12);
-            lv_obj_set_size(left_glow, 66, 56);
-            lv_obj_set_size(right_glow, 76, 24);
-            lv_obj_set_size(mouth, 22, 10);
-            lv_obj_set_size(mouth_glow, 36, 22);
-            lv_obj_align(left_eye, LV_ALIGN_CENTER, -52, -28);
-            lv_obj_align(right_eye, LV_ALIGN_CENTER, 52, -28);
-            lv_obj_align(left_glow, LV_ALIGN_CENTER, -52, -28);
-            lv_obj_align(right_glow, LV_ALIGN_CENTER, 52, -28);
-            lv_obj_align(mouth, LV_ALIGN_CENTER, 0, 28);
-            lv_obj_align(mouth_glow, LV_ALIGN_CENTER, 0, 28);
-            lv_bar_set_value(bar, 45, LV_ANIM_ON);
-            break;
+    lv_timer_set_period(anim_timer, period);
 
-        case ECHOEAR_STATE_SPEAKING:
-            lv_label_set_text(status_label, "Speaking...");
-            lv_label_set_text(mode_label, "MODE: TALK");
-            set_led_color(COLOR_WHITE, LV_OPA_COVER);
-            set_face_shape(62, 32, 86, 24, 16, 14, -30, 30);
-            lv_bar_set_value(bar, 88, LV_ANIM_ON);
-            break;
+    if (current_anim->show_car_panel)
+    {
+        lv_obj_remove_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+        update_car_panel_from_state();
+    }
+    else
+    {
+        lv_obj_add_flag(car_panel, LV_OBJ_FLAG_HIDDEN);
+    }
+}
 
-        case ECHOEAR_STATE_SLEEPING:
-            lv_label_set_text(status_label, "Sleeping...");
-            lv_label_set_text(mode_label, "MODE: SLEEP");
-            set_led_color(COLOR_WHITE, LV_OPA_70);
-            set_face_shape(62, 8, 54, 5, 4, 4, -25, 30);
-            set_scan_visible(left_scan, 5, false);
-            set_scan_visible(right_scan, 5, false);
-            set_scan_visible(mouth_scan, 4, false);
-            lv_bar_set_value(bar, 8, LV_ANIM_ON);
-            break;
+void echoear_pro_ui_refresh(void)
+{
+    if (current_anim == NULL)
+    {
+        return;
+    }
 
-        case ECHOEAR_STATE_CAR_MODE:
-            lv_label_set_text(status_label, "Car Mode");
-            lv_label_set_text(mode_label, "OBD: READY");
-            set_led_color(COLOR_CYAN, LV_OPA_COVER);
-            set_face_shape(58, 24, 38, 8, 14, 6, -48, -18);
-            set_car_panel_visible(true);
-            lv_bar_set_value(bar, 100, LV_ANIM_ON);
-            break;
+    if (current_anim->show_car_panel)
+    {
+        update_car_panel_from_state();
+    }
+
+    if (anim_timer != NULL)
+    {
+        echoear_app_state_t *state_data = echoear_app_state_get();
+
+        uint32_t period = (uint32_t)((float)current_anim->interval_ms / state_data->animation_speed);
+        if (period < 60)
+            period = 60;
+
+        lv_timer_set_period(anim_timer, period);
     }
 }
