@@ -1,6 +1,7 @@
 #include "echoear_first_boot.h"
 
 #include "echoear_provisioning.h"
+#include "echoear_softap.h"
 
 #include <string.h>
 
@@ -97,11 +98,29 @@ void echoear_first_boot_apply(void)
         echoear_provisioning_set_state(
             ECHOEAR_PROVISIONING_CHECKING);
 
+        echoear_softap_set_requested(true);
+
+        if (echoear_softap_get()->state ==
+            ECHOEAR_SOFTAP_STOPPED)
+        {
+            echoear_softap_set_state(
+                ECHOEAR_SOFTAP_STARTING);
+        }
+
         return;
     }
 
     echoear_provisioning_set_setup_completed(true);
     echoear_provisioning_set_enabled(false);
+
+    echoear_softap_set_requested(false);
+    echoear_softap_set_dns_redirect_ready(false);
+    echoear_softap_set_http_server_ready(false);
+    echoear_softap_set_connected_clients(0);
+    echoear_softap_set_error(
+        ECHOEAR_SOFTAP_ERROR_NONE);
+    echoear_softap_set_state(
+        ECHOEAR_SOFTAP_STOPPED);
 }
 
 bool echoear_first_boot_should_start_provisioning(void)
