@@ -100,8 +100,15 @@ bool echoear_provisioning_mock_load(
 
         if (strcmp(key, "provisioning_enabled") == 0)
         {
-            echoear_provisioning_set_enabled(
-                parse_bool(value));
+            /*
+             * auto preserves the decision made by
+             * First Boot Detection.
+             */
+            if (strcmp(value, "auto") != 0)
+            {
+                echoear_provisioning_set_enabled(
+                    parse_bool(value));
+            }
         }
         else if (strcmp(key, "provisioning_state") == 0)
         {
@@ -127,8 +134,14 @@ bool echoear_provisioning_mock_load(
         }
         else if (strcmp(key, "setup_completed") == 0)
         {
-            echoear_provisioning_set_setup_completed(
-                parse_bool(value));
+            /*
+             * auto preserves persistent storage state.
+             */
+            if (strcmp(value, "auto") != 0)
+            {
+                echoear_provisioning_set_setup_completed(
+                    parse_bool(value));
+            }
         }
         else if (strcmp(key, "client_connected") == 0)
         {
