@@ -1,5 +1,6 @@
 #include "echoear_pro_ui.h"
 #include "echoear_app_state.h"
+#include "echoear_provisioning.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -717,4 +718,44 @@ void echoear_pro_ui_refresh(void)
     {
         lv_timer_set_period(anim_timer, animation_period_ms(current_anim, current_frame));
     }
+}
+
+void echoear_pro_ui_apply_provisioning_state(void)
+{
+    echoear_provisioning_t *provisioning =
+        echoear_provisioning_get();
+
+    if (provisioning == NULL)
+    {
+        echoear_pro_ui_apply_app_state();
+        return;
+    }
+
+    if (!provisioning->enabled)
+    {
+        echoear_pro_ui_apply_app_state();
+        return;
+    }
+
+    if (provisioning->setup_completed ||
+        provisioning->state ==
+            ECHOEAR_PROVISIONING_COMPLETED)
+    {
+        echoear_pro_ui_set_state(
+            ECHOEAR_FACE_NORMAL_HAPPY);
+        return;
+    }
+
+    if (provisioning->state ==
+            ECHOEAR_PROVISIONING_ERROR ||
+        provisioning->error !=
+            ECHOEAR_PROVISIONING_ERROR_NONE)
+    {
+        echoear_pro_ui_set_state(
+            ECHOEAR_FACE_SYSTEM_ERROR);
+        return;
+    }
+
+    echoear_pro_ui_set_state(
+        ECHOEAR_FACE_SYSTEM_WIFI_SETUP);
 }
