@@ -1,5 +1,5 @@
-face=auto
-car_mode=1
+face=normal_idle
+car_mode=0
 scenario=driving_gps
 availability=online
 vehicle_status=DRIVING

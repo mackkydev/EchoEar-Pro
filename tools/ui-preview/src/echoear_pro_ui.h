@@ -25,8 +25,7 @@ typedef enum
     ECHOEAR_FACE_CAR_OBD_READY,
     ECHOEAR_FACE_CAR_OBD_ERROR,
 
-    /* Module 3A vehicle states. These reuse existing graphics until
-       dedicated face assets are added in Module 3B. */
+    /* Module 3B dedicated vehicle face assets. */
     ECHOEAR_FACE_CAR_PARKED,
     ECHOEAR_FACE_CAR_CHARGING,
     ECHOEAR_FACE_CAR_LOW_BATTERY,
@@ -38,5 +37,7 @@ typedef enum
 
 void echoear_pro_ui_create(void);
 void echoear_pro_ui_set_state(echoear_face_state_t state);
+void echoear_pro_ui_apply_interaction_state(void);
 void echoear_pro_ui_apply_vehicle_state(void);
+void echoear_pro_ui_apply_app_state(void);
 void echoear_pro_ui_refresh(void);

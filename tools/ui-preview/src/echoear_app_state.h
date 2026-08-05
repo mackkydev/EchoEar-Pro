@@ -26,6 +26,20 @@ typedef enum {
     ECHOEAR_SPEED_SOURCE_VEHICLE
 } echoear_speed_source_t;
 
+typedef enum {
+    ECHOEAR_INTERACTION_IDLE = 0,
+    ECHOEAR_INTERACTION_LISTENING,
+    ECHOEAR_INTERACTION_THINKING,
+    ECHOEAR_INTERACTION_SPEAKING,
+    ECHOEAR_INTERACTION_HAPPY,
+    ECHOEAR_INTERACTION_CONFUSED,
+    ECHOEAR_INTERACTION_SAD,
+    ECHOEAR_INTERACTION_SLEEPING,
+    ECHOEAR_INTERACTION_WINK,
+    ECHOEAR_INTERACTION_ANGRY,
+    ECHOEAR_INTERACTION_SURPRISED
+} echoear_interaction_state_t;
+
 typedef struct {
     char status[32];
 
@@ -60,6 +74,7 @@ typedef struct {
     float animation_speed;
 
     bool car_mode;
+    echoear_interaction_state_t interaction_state;
     echoear_vehicle_state_t vehicle;
 } echoear_app_state_t;
 
@@ -73,6 +88,7 @@ void echoear_app_state_set_brightness(uint8_t brightness);
 void echoear_app_state_set_volume(uint8_t volume);
 void echoear_app_state_set_animation_speed(float speed);
 void echoear_app_state_set_car_mode(bool enabled);
+void echoear_app_state_set_interaction_state(echoear_interaction_state_t state);
 
 void echoear_app_state_set_vehicle_status(const char *status);
 void echoear_app_state_set_vehicle_scenario(echoear_vehicle_scenario_t scenario);
@@ -96,6 +112,7 @@ void echoear_app_state_set_obd(
     int speed_kmh
 );
 
+const char *echoear_interaction_state_to_string(echoear_interaction_state_t state);
 const char *echoear_vehicle_scenario_to_string(echoear_vehicle_scenario_t scenario);
 const char *echoear_vehicle_availability_to_string(echoear_vehicle_availability_t availability);
 const char *echoear_speed_source_to_string(echoear_speed_source_t source);

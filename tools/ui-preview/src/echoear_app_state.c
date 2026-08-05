@@ -57,6 +57,7 @@ void echoear_app_state_init(void)
     app_state.volume = 70;
     app_state.animation_speed = 1.0f;
     app_state.car_mode = false;
+    app_state.interaction_state = ECHOEAR_INTERACTION_IDLE;
 
     copy_text(app_state.vehicle.status, sizeof(app_state.vehicle.status), "VEHICLE READY");
     app_state.vehicle.scenario = ECHOEAR_VEHICLE_SCENARIO_PARKED;
@@ -120,6 +121,14 @@ void echoear_app_state_set_car_mode(bool enabled)
     app_state.car_mode = enabled;
 }
 
+void echoear_app_state_set_interaction_state(echoear_interaction_state_t state)
+{
+    if (state < ECHOEAR_INTERACTION_IDLE || state > ECHOEAR_INTERACTION_SURPRISED) {
+        state = ECHOEAR_INTERACTION_IDLE;
+    }
+    app_state.interaction_state = state;
+}
+
 void echoear_app_state_set_vehicle_status(const char *status)
 {
     copy_text(app_state.vehicle.status, sizeof(app_state.vehicle.status), status);
@@ -181,6 +190,36 @@ void echoear_app_state_set_obd(
     echoear_app_state_set_vehicle_status(status);
     echoear_app_state_set_vehicle_metrics(soc_percent, range_km, (float)speed_kmh);
     echoear_app_state_set_speed_source(ECHOEAR_SPEED_SOURCE_OBD);
+}
+
+
+const char *echoear_interaction_state_to_string(echoear_interaction_state_t state)
+{
+    switch (state) {
+    case ECHOEAR_INTERACTION_LISTENING:
+        return "listening";
+    case ECHOEAR_INTERACTION_THINKING:
+        return "thinking";
+    case ECHOEAR_INTERACTION_SPEAKING:
+        return "speaking";
+    case ECHOEAR_INTERACTION_HAPPY:
+        return "happy";
+    case ECHOEAR_INTERACTION_CONFUSED:
+        return "confused";
+    case ECHOEAR_INTERACTION_SAD:
+        return "sad";
+    case ECHOEAR_INTERACTION_SLEEPING:
+        return "sleeping";
+    case ECHOEAR_INTERACTION_WINK:
+        return "wink";
+    case ECHOEAR_INTERACTION_ANGRY:
+        return "angry";
+    case ECHOEAR_INTERACTION_SURPRISED:
+        return "surprised";
+    case ECHOEAR_INTERACTION_IDLE:
+    default:
+        return "idle";
+    }
 }
 
 const char *echoear_vehicle_scenario_to_string(echoear_vehicle_scenario_t scenario)

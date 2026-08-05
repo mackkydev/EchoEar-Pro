@@ -26,3 +26,17 @@ firmware/esp-brookesia/
 tools/vcpkg/
 tools/ui-preview/simulator/
 tools/ui-preview/build/
+
+# UI Preview generated files
+tools/ui-preview/simulator/build/
+tools/ui-preview/simulator/bin/
+tools/ui-preview/simulator/assets/
+tools/ui-preview/simulator/assets-old-*/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Runtime/temp files
+*.log

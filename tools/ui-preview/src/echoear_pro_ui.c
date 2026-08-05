@@ -12,9 +12,13 @@ typedef struct
 {
     const char **frames;
     uint8_t frame_count;
-    uint16_t interval_ms;
+    const uint16_t *frame_durations_ms;
+    uint16_t fallback_interval_ms;
     bool show_status_bar;
+    int16_t face_offset_y;
 } echoear_anim_t;
+
+#define ARRAY_COUNT(items) ((uint8_t)(sizeof(items) / sizeof((items)[0])))
 
 static lv_obj_t *screen_circle;
 static lv_obj_t *face_img;
@@ -31,7 +35,7 @@ static bool current_state_valid;
 /* ---------- frame paths ------------------------------------------------------------ */
 /* ถ้ารูปไม่ขึ้นทีหลัง เดี๋ยวค่อยเปลี่ยน path เป็น A:/assets/... */
 
-/* ---------- Nomail ---------- */
+/* ---------- Normal ------------------------------------------------------------ */
 static const char *normal_angry[] = {
     "A:assets/faces/normal/angry/face_angry_01.png",
     "A:assets/faces/normal/angry/face_angry_02.png",
@@ -40,23 +44,22 @@ static const char *normal_angry[] = {
 static const char *normal_confused[] = {
     "A:assets/faces/normal/confused/face_confused_01.png",
     "A:assets/faces/normal/confused/face_confused_02.png",
-    "A:assets/faces/normal/confused/face_confused_03.png",
-    "A:assets/faces/normal/confused/face_confused_04.png"};
+    "A:assets/faces/normal/confused/face_confused_03.png"};
 
 static const char *normal_happy[] = {
     "A:assets/faces/normal/happy/face_happy_01.png",
-    "A:assets/faces/normal/happy/face_happy_02.png"};
+    "A:assets/faces/normal/happy/face_happy_02.png",
+    "A:assets/faces/normal/happy/face_happy_03.png"};
 
 static const char *normal_idle[] = {
     "A:assets/faces/normal/idle/face_idle_01.png",
     "A:assets/faces/normal/idle/face_idle_02.png",
-    "A:assets/faces/normal/idle/face_idle_03.png",
-    "A:assets/faces/normal/idle/face_idle_04.png",
-    "A:assets/faces/normal/idle/face_idle_05.png"};
+    "A:assets/faces/normal/idle/face_idle_03.png"};
 
 static const char *normal_listening[] = {
     "A:assets/faces/normal/listening/face_listening_01.png",
-    "A:assets/faces/normal/listening/face_listening_02.png"};
+    "A:assets/faces/normal/listening/face_listening_02.png",
+    "A:assets/faces/normal/listening/face_listening_03.png"};
 
 static const char *normal_sad[] = {
     "A:assets/faces/normal/sad/face_sad_01.png",
@@ -64,8 +67,7 @@ static const char *normal_sad[] = {
 
 static const char *normal_sleeping[] = {
     "A:assets/faces/normal/sleeping/face_sleeping_01.png",
-    "A:assets/faces/normal/sleeping/face_sleeping_02.png",
-    "A:assets/faces/normal/sleeping/face_sleeping_03.png"};
+    "A:assets/faces/normal/sleeping/face_sleeping_02.png"};
 
 static const char *normal_speaking[] = {
     "A:assets/faces/normal/speaking/face_speaking_01.png",
@@ -85,10 +87,9 @@ static const char *normal_thinking[] = {
 
 static const char *normal_wink[] = {
     "A:assets/faces/normal/wink/face_wink_01.png",
-    "A:assets/faces/normal/wink/face_wink_02.png",
-    "A:assets/faces/normal/wink/face_wink_03.png"};
+    "A:assets/faces/normal/wink/face_wink_02.png"};
 
-/* ---------- System ---------- */
+/* ---------- System ------------------------------------------------------------ */
 static const char *system_error[] = {
     "A:assets/faces/system/error/face_error_01.png",
     "A:assets/faces/system/error/face_error_02.png"};
@@ -111,7 +112,7 @@ static const char *system_wifi_setup[] = {
     "A:assets/faces/system/wifi_setup/face_wifi_setup_01.png",
     "A:assets/faces/system/wifi_setup/face_wifi_setup_02.png"};
 
-/* ---------- Car_OBD ---------- */
+/* ---------- Legacy car / OBD ------------------------------------------------------------ */
 static const char *car_obd_connecting[] = {
     "A:assets/faces/car/obd_connecting/face_obd_connecting_01.png",
     "A:assets/faces/car/obd_connecting/face_obd_connecting_02.png",
@@ -126,84 +127,165 @@ static const char *car_obd_ready[] = {
     "A:assets/faces/car/obd_ready/face_obd_ready_02.png",
     "A:assets/faces/car/obd_ready/face_obd_ready_03.png"};
 
+/* ---------- Module 3B dedicated car faces -------------------------------------------- */
+static const char *car_charging[] = {
+    "A:assets/faces/car/charging/face_charging_01.png",
+    "A:assets/faces/car/charging/face_charging_02.png",
+    "A:assets/faces/car/charging/face_charging_03.png",
+    "A:assets/faces/car/charging/face_charging_04.png"};
+
+static const char *car_low_battery[] = {
+    "A:assets/faces/car/low_battery/face_low_battery_01.png",
+    "A:assets/faces/car/low_battery/face_low_battery_02.png"};
+
+static const char *car_door_open[] = {
+    "A:assets/faces/car/door_open/face_door_open_01.png",
+    "A:assets/faces/car/door_open/face_door_open_02.png",
+    "A:assets/faces/car/door_open/face_door_open_03.png"};
+
+static const char *car_cloud_stale[] = {
+    "A:assets/faces/car/cloud_stale/face_cloud_stale_01.png",
+    "A:assets/faces/car/cloud_stale/face_cloud_stale_02.png"};
+
+static const char *car_cloud_offline[] = {
+    "A:assets/faces/car/cloud_offline/face_cloud_offline_01.png",
+    "A:assets/faces/car/cloud_offline/face_cloud_offline_02.png",
+    "A:assets/faces/car/cloud_offline/face_cloud_offline_03.png"};
+
+static const char *car_driving[] = {
+    "A:assets/faces/car/driving/face_driving_01.png",
+    "A:assets/faces/car/driving/face_driving_02.png",
+    "A:assets/faces/car/driving/face_driving_03.png"};
+
+/* ---------- animation timing ------------------------------------------------------------ */
+static const uint16_t timing_normal_idle[] = {
+    1800, 140, 1800};
+
+static const uint16_t timing_normal_listening[] = {
+    650, 250, 650};
+
+static const uint16_t timing_normal_thinking[] = {
+    700, 450, 700};
+
+static const uint16_t timing_normal_speaking[] = {
+    220, 300, 220, 300};
+
+static const uint16_t timing_normal_happy[] = {
+    650, 300, 650};
+
+static const uint16_t timing_normal_confused[] = {
+    250, 350, 250};
+
+static const uint16_t timing_normal_sad[] = {
+    1000, 300};
+
+static const uint16_t timing_normal_sleeping[] = {
+    1300, 1300};
+
+static const uint16_t timing_normal_wink[] = {
+    900, 220};
+
+static const uint16_t timing_normal_angry[] = {
+    650, 350, 650};
+
+static const uint16_t timing_normal_surprised[] = {
+    550, 300, 550};
+
+static const uint16_t timing_car_charging[] = {
+    550, 350, 550, 350};
+
+static const uint16_t timing_car_low_battery[] = {
+    900, 500};
+
+static const uint16_t timing_car_door_open[] = {
+    700, 350, 700};
+
+static const uint16_t timing_car_cloud_stale[] = {
+    1000, 1000};
+
+static const uint16_t timing_car_cloud_offline[] = {
+    700, 450, 700};
+
+static const uint16_t timing_car_driving[] = {
+    550, 350, 550};
+
 /* ---------- animations ------------------------------------------------------------ */
-
 static const echoear_anim_t anim_normal_angry = {
-    normal_angry, 3, 260, false};
-
+    normal_angry, ARRAY_COUNT(normal_angry), timing_normal_angry, 260, false, 0};
 static const echoear_anim_t anim_normal_confused = {
-    normal_confused, 4, 320, false};
-
+    normal_confused, ARRAY_COUNT(normal_confused), timing_normal_confused, 360, false, 0};
 static const echoear_anim_t anim_normal_happy = {
-    normal_happy, 2, 420, false};
-
+    normal_happy, ARRAY_COUNT(normal_happy), timing_normal_happy, 340, false, 0};
 static const echoear_anim_t anim_normal_idle = {
-    normal_idle, 5, 600, false};
-
+    normal_idle, ARRAY_COUNT(normal_idle), timing_normal_idle, 600, false, 0};
 static const echoear_anim_t anim_normal_listening = {
-    normal_listening, 2, 380, false};
-
+    normal_listening, ARRAY_COUNT(normal_listening), timing_normal_listening, 360, false, 0};
 static const echoear_anim_t anim_normal_sad = {
-    normal_sad, 2, 600, false};
-
+    normal_sad, ARRAY_COUNT(normal_sad), timing_normal_sad, 560, false, 0};
 static const echoear_anim_t anim_normal_sleeping = {
-    normal_sleeping, 3, 700, false};
-
+    normal_sleeping, ARRAY_COUNT(normal_sleeping), timing_normal_sleeping, 900, false, 0};
 static const echoear_anim_t anim_normal_speaking = {
-    normal_speaking, 4, 160, false};
-
+    normal_speaking, ARRAY_COUNT(normal_speaking), timing_normal_speaking, 160, false, 0};
 static const echoear_anim_t anim_normal_surprised = {
-    normal_surprised, 3, 260, false};
-
+    normal_surprised, ARRAY_COUNT(normal_surprised), timing_normal_surprised, 220, false, 0};
 static const echoear_anim_t anim_normal_thinking = {
-    normal_thinking, 3, 450, false};
-
+    normal_thinking, ARRAY_COUNT(normal_thinking), timing_normal_thinking, 450, false, 0};
 static const echoear_anim_t anim_normal_wink = {
-    normal_wink, 3, 300, false};
+    normal_wink, ARRAY_COUNT(normal_wink), timing_normal_wink, 300, false, 0};
 
 static const echoear_anim_t anim_system_error = {
-    system_error, 2, 450, false};
-
+    system_error, ARRAY_COUNT(system_error), NULL, 450, false, 0};
 static const echoear_anim_t anim_system_low_battery = {
-    system_low_battery, 2, 550, false};
-
+    system_low_battery, ARRAY_COUNT(system_low_battery), NULL, 550, false, 0};
 static const echoear_anim_t anim_system_ota_updating = {
-    system_ota_updating, 8, 160, false};
-
+    system_ota_updating, ARRAY_COUNT(system_ota_updating), NULL, 160, false, 0};
 static const echoear_anim_t anim_system_wifi_setup = {
-    system_wifi_setup, 2, 500, false};
+    system_wifi_setup, ARRAY_COUNT(system_wifi_setup), NULL, 500, false, 0};
 
+/* Legacy assets are centered higher because they do not reserve the bottom text area. */
 static const echoear_anim_t anim_car_obd_connecting = {
-    car_obd_connecting, 3, 320, true};
-
+    car_obd_connecting, ARRAY_COUNT(car_obd_connecting), NULL, 320, true, -48};
 static const echoear_anim_t anim_car_obd_error = {
-    car_obd_error, 3, 500, true};
-
+    car_obd_error, ARRAY_COUNT(car_obd_error), NULL, 500, true, -48};
 static const echoear_anim_t anim_car_obd_ready = {
-    car_obd_ready, 3, 350, true};
-
-/* Module 3A reuses existing graphics. Module 3B can replace each frame set
-   with dedicated vehicle-state artwork without changing the state model. */
+    car_obd_ready, ARRAY_COUNT(car_obd_ready), NULL, 350, true, -48};
 static const echoear_anim_t anim_car_parked = {
-    car_obd_ready, 3, 420, true};
+    car_obd_ready, ARRAY_COUNT(car_obd_ready), NULL, 420, true, -48};
 
+/* New Module 3B assets are full 360x360 templates with icon at the top and
+   an intentionally empty status area at the bottom, so offset Y remains zero. */
 static const echoear_anim_t anim_car_charging = {
-    normal_happy, 2, 420, true};
-
+    car_charging, ARRAY_COUNT(car_charging), timing_car_charging, 240, true, 0};
 static const echoear_anim_t anim_car_low_battery = {
-    system_low_battery, 2, 550, true};
-
+    car_low_battery, ARRAY_COUNT(car_low_battery), timing_car_low_battery, 420, true, 0};
 static const echoear_anim_t anim_car_door_open = {
-    normal_confused, 4, 380, true};
-
+    car_door_open, ARRAY_COUNT(car_door_open), timing_car_door_open, 260, true, 0};
 static const echoear_anim_t anim_car_cloud_stale = {
-    normal_thinking, 3, 650, true};
-
+    car_cloud_stale, ARRAY_COUNT(car_cloud_stale), timing_car_cloud_stale, 500, true, 0};
 static const echoear_anim_t anim_car_cloud_offline = {
-    car_obd_error, 2, 650, true};
-
+    car_cloud_offline, ARRAY_COUNT(car_cloud_offline), timing_car_cloud_offline, 320, true, 0};
 static const echoear_anim_t anim_car_driving = {
-    car_obd_ready, 3, 240, true};
+    car_driving, ARRAY_COUNT(car_driving), timing_car_driving, 220, true, 0};
+
+static uint32_t animation_period_ms(const echoear_anim_t *anim, uint8_t frame_index)
+{
+    echoear_app_state_t *state_data = echoear_app_state_get();
+    uint16_t raw_period = anim->fallback_interval_ms;
+    float speed = state_data->animation_speed;
+    uint32_t period;
+
+    if (anim->frame_durations_ms != NULL && frame_index < anim->frame_count)
+    {
+        raw_period = anim->frame_durations_ms[frame_index];
+    }
+    if (speed < 0.25f)
+    {
+        speed = 0.25f;
+    }
+
+    period = (uint32_t)((float)raw_period / speed);
+    return period < 60U ? 60U : period;
+}
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
@@ -221,6 +303,7 @@ static void anim_timer_cb(lv_timer_t *timer)
     }
 
     lv_image_set_src(face_img, current_anim->frames[current_frame]);
+    lv_timer_set_period(anim_timer, animation_period_ms(current_anim, current_frame));
 }
 
 static const char *speed_source_label(echoear_speed_source_t source)
@@ -509,24 +592,61 @@ void echoear_pro_ui_set_state(echoear_face_state_t state)
     current_state_valid = true;
     current_frame = 0;
     lv_image_set_src(face_img, current_anim->frames[0]);
-    echoear_app_state_t *state_data = echoear_app_state_get();
+    lv_timer_set_period(anim_timer, animation_period_ms(current_anim, current_frame));
 
-    uint32_t period = (uint32_t)((float)current_anim->interval_ms / state_data->animation_speed);
-    if (period < 60)
-        period = 60;
-
-    lv_timer_set_period(anim_timer, period);
+    lv_obj_align(face_img, LV_ALIGN_CENTER, 0, current_anim->face_offset_y);
 
     if (current_anim->show_status_bar)
     {
-        lv_obj_align(face_img, LV_ALIGN_CENTER, 0, -48);
         lv_obj_remove_flag(status_bar, LV_OBJ_FLAG_HIDDEN);
         update_status_lines_from_state();
     }
     else
     {
-        lv_obj_align(face_img, LV_ALIGN_CENTER, 0, 0);
         lv_obj_add_flag(status_bar, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void echoear_pro_ui_apply_interaction_state(void)
+{
+    echoear_app_state_t *state = echoear_app_state_get();
+
+    switch (state->interaction_state)
+    {
+    case ECHOEAR_INTERACTION_LISTENING:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_LISTENING);
+        break;
+    case ECHOEAR_INTERACTION_THINKING:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_THINKING);
+        break;
+    case ECHOEAR_INTERACTION_SPEAKING:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_SPEAKING);
+        break;
+    case ECHOEAR_INTERACTION_HAPPY:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_HAPPY);
+        break;
+    case ECHOEAR_INTERACTION_CONFUSED:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_CONFUSED);
+        break;
+    case ECHOEAR_INTERACTION_SAD:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_SAD);
+        break;
+    case ECHOEAR_INTERACTION_SLEEPING:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_SLEEPING);
+        break;
+    case ECHOEAR_INTERACTION_WINK:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_WINK);
+        break;
+    case ECHOEAR_INTERACTION_ANGRY:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_ANGRY);
+        break;
+    case ECHOEAR_INTERACTION_SURPRISED:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_SURPRISED);
+        break;
+    case ECHOEAR_INTERACTION_IDLE:
+    default:
+        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_IDLE);
+        break;
     }
 }
 
@@ -536,7 +656,7 @@ void echoear_pro_ui_apply_vehicle_state(void)
 
     if (!state->car_mode)
     {
-        echoear_pro_ui_set_state(ECHOEAR_FACE_NORMAL_IDLE);
+        echoear_pro_ui_apply_interaction_state();
         return;
     }
 
@@ -567,6 +687,20 @@ void echoear_pro_ui_apply_vehicle_state(void)
     }
 }
 
+void echoear_pro_ui_apply_app_state(void)
+{
+    echoear_app_state_t *state = echoear_app_state_get();
+
+    if (state->car_mode)
+    {
+        echoear_pro_ui_apply_vehicle_state();
+    }
+    else
+    {
+        echoear_pro_ui_apply_interaction_state();
+    }
+}
+
 void echoear_pro_ui_refresh(void)
 {
     if (current_anim == NULL)
@@ -581,12 +715,6 @@ void echoear_pro_ui_refresh(void)
 
     if (anim_timer != NULL)
     {
-        echoear_app_state_t *state_data = echoear_app_state_get();
-
-        uint32_t period = (uint32_t)((float)current_anim->interval_ms / state_data->animation_speed);
-        if (period < 60)
-            period = 60;
-
-        lv_timer_set_period(anim_timer, period);
+        lv_timer_set_period(anim_timer, animation_period_ms(current_anim, current_frame));
     }
 }

@@ -274,7 +274,7 @@ void echoear_mock_api_load(const char *path)
         echoear_pro_ui_set_state(requested_face);
     }
     else {
-        echoear_pro_ui_apply_vehicle_state();
+        echoear_pro_ui_apply_app_state();
     }
 
     echoear_pro_ui_refresh();
