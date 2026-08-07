@@ -234,6 +234,73 @@ void echoear_runtime_network_tick(uint32_t now_ms)
     request_connect(ECHOEAR_RUNTIME_NETWORK_REASON_RETRY, now_ms);
 }
 
+void echoear_runtime_network_request_reconnect(
+    uint32_t now_ms)
+{
+    echoear_runtime_network_t *network =
+        echoear_runtime_network_get();
+
+    if (network == NULL)
+    {
+        return;
+    }
+
+    /*
+     * Clear only runtime connection data.
+     * Saved Wi-Fi credentials must remain untouched.
+     */
+    network->associated = false;
+    network->ip_ready = false;
+
+    network->ip[0] = '\0';
+    network->gateway[0] = '\0';
+    network->netmask[0] = '\0';
+
+    network->rssi = 0;
+
+    network->retry_due_ms = 0U;
+    network->current_retry_delay_ms = 0U;
+
+    /*
+     * Runtime reconnect never automatically
+     * enters provisioning or deletes credentials.
+     */
+    if (!network->credentials_available ||
+        network->ssid[0] == '\0')
+    {
+        network->connect_requested = false;
+
+        network->error =
+            ECHOEAR_RUNTIME_NETWORK_ERROR_CREDENTIALS_MISSING;
+
+        network->provisioning_required = false;
+
+        network->state =
+            ECHOEAR_RUNTIME_NETWORK_OFFLINE;
+
+        network->generation++;
+        return;
+    }
+
+    network->attempt = 1U;
+
+    network->reason =
+        ECHOEAR_RUNTIME_NETWORK_REASON_RUNTIME_RECONNECT;
+
+    network->error =
+        ECHOEAR_RUNTIME_NETWORK_ERROR_NONE;
+
+    network->provisioning_required = false;
+
+    network->connect_requested = true;
+
+    network->connect_started_ms = now_ms;
+
+    network->state =
+        ECHOEAR_RUNTIME_NETWORK_CONNECT_REQUESTED;
+
+    network->generation++;
+}
 void echoear_runtime_network_request_manual_connect(uint32_t now_ms)
 {
     if (!s.credentials_available || s.ssid[0] == '\0') {

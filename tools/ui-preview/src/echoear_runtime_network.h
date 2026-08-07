@@ -94,6 +94,9 @@ void echoear_runtime_network_mark_offline(echoear_runtime_network_error_t error)
 void echoear_runtime_network_report_connect_failure(echoear_runtime_network_error_t error,
                                                      uint32_t now_ms);
 void echoear_runtime_network_tick(uint32_t now_ms);
+void echoear_runtime_network_request_reconnect(
+    uint32_t now_ms);
+
 void echoear_runtime_network_request_manual_connect(uint32_t now_ms);
 void echoear_runtime_network_clear_error(void);
 
