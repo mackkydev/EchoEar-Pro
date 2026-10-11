@@ -57,6 +57,10 @@ void echoear_app_state_init(void)
     app_state.volume = 70;
     app_state.animation_speed = 1.0f;
     app_state.car_mode = false;
+    app_state.hands_free = false;
+    app_state.show_battery = true;
+    app_state.show_subtitles = true;
+    app_state.assistant_voice = ECHOEAR_ASSISTANT_VOICE_LEDA;
     app_state.interaction_state = ECHOEAR_INTERACTION_IDLE;
 
     copy_text(app_state.vehicle.status, sizeof(app_state.vehicle.status), "VEHICLE READY");
@@ -119,6 +123,30 @@ void echoear_app_state_set_animation_speed(float speed)
 void echoear_app_state_set_car_mode(bool enabled)
 {
     app_state.car_mode = enabled;
+}
+
+void echoear_app_state_set_hands_free(bool enabled)
+{
+    app_state.hands_free = enabled;
+}
+
+void echoear_app_state_set_show_battery(bool enabled)
+{
+    app_state.show_battery = enabled;
+}
+
+void echoear_app_state_set_show_subtitles(bool enabled)
+{
+    app_state.show_subtitles = enabled;
+}
+
+void echoear_app_state_set_assistant_voice(echoear_assistant_voice_t voice)
+{
+    if (voice < ECHOEAR_ASSISTANT_VOICE_LEDA ||
+        voice >= ECHOEAR_ASSISTANT_VOICE_COUNT) {
+        voice = ECHOEAR_ASSISTANT_VOICE_LEDA;
+    }
+    app_state.assistant_voice = voice;
 }
 
 void echoear_app_state_set_interaction_state(echoear_interaction_state_t state)

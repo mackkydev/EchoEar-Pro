@@ -1,0 +1,7 @@
+steps:
+  - name: curlimages/curl:8.16.0
+    args:
+      - --fail-with-body
+      - --show-error
+      - --silent
+      - https://echoear-api-207253091807.asia-southeast2.run.app/

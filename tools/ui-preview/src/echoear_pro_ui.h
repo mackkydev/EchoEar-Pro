@@ -1,6 +1,12 @@
 #pragma once
 
+#include <stdbool.h>
+
+#if defined(ESP_PLATFORM)
+#include <lvgl.h>
+#else
 #include "lvgl/lvgl.h"
+#endif
 
 typedef enum
 {
@@ -40,4 +46,9 @@ void echoear_pro_ui_set_state(echoear_face_state_t state);
 void echoear_pro_ui_apply_interaction_state(void);
 void echoear_pro_ui_apply_vehicle_state(void);
 void echoear_pro_ui_apply_app_state(void);
+void echoear_pro_ui_apply_provisioning_state(void);
 void echoear_pro_ui_refresh(void);
+void echoear_pro_ui_set_subtitle(const char *text);
+void echoear_pro_ui_clear_subtitle_after(uint32_t delay_ms);
+void echoear_pro_ui_set_device_battery(int level, bool charging, bool valid);
+void echoear_pro_ui_set_battery_visible(bool visible);

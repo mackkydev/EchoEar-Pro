@@ -3,6 +3,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     ECHOEAR_VEHICLE_SCENARIO_PARKED = 0,
     ECHOEAR_VEHICLE_SCENARIO_CHARGING,
@@ -40,6 +44,15 @@ typedef enum {
     ECHOEAR_INTERACTION_SURPRISED
 } echoear_interaction_state_t;
 
+typedef enum {
+    ECHOEAR_ASSISTANT_VOICE_LEDA = 0,
+    ECHOEAR_ASSISTANT_VOICE_SULAFAT,
+    ECHOEAR_ASSISTANT_VOICE_AOEDE,
+    ECHOEAR_ASSISTANT_VOICE_ACHIRD,
+    ECHOEAR_ASSISTANT_VOICE_KORE,
+    ECHOEAR_ASSISTANT_VOICE_COUNT
+} echoear_assistant_voice_t;
+
 typedef struct {
     char status[32];
 
@@ -74,6 +87,10 @@ typedef struct {
     float animation_speed;
 
     bool car_mode;
+    bool hands_free;
+    bool show_battery;
+    bool show_subtitles;
+    echoear_assistant_voice_t assistant_voice;
     echoear_interaction_state_t interaction_state;
     echoear_vehicle_state_t vehicle;
 } echoear_app_state_t;
@@ -88,6 +105,10 @@ void echoear_app_state_set_brightness(uint8_t brightness);
 void echoear_app_state_set_volume(uint8_t volume);
 void echoear_app_state_set_animation_speed(float speed);
 void echoear_app_state_set_car_mode(bool enabled);
+void echoear_app_state_set_hands_free(bool enabled);
+void echoear_app_state_set_show_battery(bool enabled);
+void echoear_app_state_set_show_subtitles(bool enabled);
+void echoear_app_state_set_assistant_voice(echoear_assistant_voice_t voice);
 void echoear_app_state_set_interaction_state(echoear_interaction_state_t state);
 
 void echoear_app_state_set_vehicle_status(const char *status);
@@ -116,3 +137,7 @@ const char *echoear_interaction_state_to_string(echoear_interaction_state_t stat
 const char *echoear_vehicle_scenario_to_string(echoear_vehicle_scenario_t scenario);
 const char *echoear_vehicle_availability_to_string(echoear_vehicle_availability_t availability);
 const char *echoear_speed_source_to_string(echoear_speed_source_t source);
+
+#ifdef __cplusplus
+}
+#endif

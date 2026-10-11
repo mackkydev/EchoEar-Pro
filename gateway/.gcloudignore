@@ -1,0 +1,9 @@
+# Cloud Build receives only the runtime container inputs below.
+**
+!.gcloudignore
+!Dockerfile
+!requirements.txt
+!echoear_gateway/
+!echoear_gateway/**
+echoear_gateway/**/__pycache__/**
+echoear_gateway/**/*.pyc

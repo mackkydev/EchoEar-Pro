@@ -20,6 +20,11 @@ Desktop.ini
 # Python
 __pycache__/
 *.pyc
+.venv/
+.env
+devices.json
+device-credentials*.json
+gateway/output/
  
 firmware/esp-brookesia/
 
@@ -40,3 +45,7 @@ tools/ui-preview/simulator/assets-old-*/
 
 # Runtime/temp files
 *.log
+
+# Local work and face backups
+.tmp/
+tools/ui-preview/assets/faces-backup-*/
